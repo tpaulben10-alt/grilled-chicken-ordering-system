@@ -53,7 +53,12 @@ export const productService = {
     try {
       const response = await fetch('/api/products');
       if (!response.ok) throw new Error('API failed');
-      return await response.json();
+      const data = await response.json();
+      return data.map((p: any) => ({
+        ...p,
+        price: parseFloat(p.price),
+        imageUrl: p.image_url
+      }));
     } catch (e) {
       console.warn('Backend products failed, falling back to Firebase or empty');
       const path = 'products';

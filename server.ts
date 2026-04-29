@@ -22,10 +22,16 @@ function getPool() {
       console.warn('DATABASE_URL is not defined. Aiven connectivity disabled.');
       return null;
     }
+
+    // Set this for production/hosted envs where self-signed certs are common
+    if (connectionString.includes('aivencloud.com') || connectionString.includes('render.com')) {
+      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    }
+
     pool = new Pool({
       connectionString,
       ssl: {
-        rejectUnauthorized: false // Required for Aiven usually
+        rejectUnauthorized: false
       }
     });
   }

@@ -170,7 +170,7 @@ const AdminDashboard = ({ orders, products, onRefresh }: {
                             <span className="font-bold text-primary">{item.quantity}x</span>
                             <span className="text-charcoal font-medium">{item.name}</span>
                         </div>
-                        <span className="text-stone-400">${(item.price * item.quantity).toFixed(2)}</span>
+                        <span className="text-stone-400">${(Number(item.price) * item.quantity).toFixed(2)}</span>
                       </div>
                     ))}
                   </div>
@@ -182,7 +182,7 @@ const AdminDashboard = ({ orders, products, onRefresh }: {
                     </div>
                     <div className="text-right">
                         <span className="text-xs text-stone-400 uppercase font-bold mr-2">Total</span>
-                        <span className="text-2xl font-bold">${order.totalAmount.toFixed(2)}</span>
+                        <span className="text-2xl font-bold">${Number(order.totalAmount).toFixed(2)}</span>
                     </div>
                   </div>
 
@@ -240,7 +240,7 @@ const AdminDashboard = ({ orders, products, onRefresh }: {
                      <div className="flex flex-col min-w-0">
                         <span className="text-[10px] font-bold text-primary uppercase">{p.category}</span>
                         <h4 className="font-bold text-base truncate">{p.name}</h4>
-                        <p className="text-stone-400 font-bold">${p.price.toFixed(2)}</p>
+                        <p className="text-stone-400 font-bold">${Number(p.price).toFixed(2)}</p>
                      </div>
                   </div>
                   <button 
@@ -515,14 +515,14 @@ const CartDrawer = ({
                     </div>
                     <div className="flex-1 min-w-0">
                        <h4 className="font-bold text-base truncate">{item.name}</h4>
-                       <p className="text-stone-400 text-xs">${item.price.toFixed(2)} each</p>
+                       <p className="text-stone-400 text-xs">${Number(item.price).toFixed(2)} each</p>
                        <div className="flex items-center gap-3 mt-2">
                           <div className="flex items-center bg-stone-50 rounded-lg p-1">
                             <button onClick={() => updateQuantity(item.id, -1)} className="w-6 h-6 flex items-center justify-center hover:bg-white rounded transition-all text-stone-400"><Minus className="w-3 h-3" /></button>
                             <span className="w-8 text-center text-xs font-bold">{item.quantity}</span>
                             <button onClick={() => updateQuantity(item.id, 1)} className="w-6 h-6 flex items-center justify-center hover:bg-white rounded transition-all text-stone-400"><Plus className="w-3 h-3" /></button>
                           </div>
-                          <span className="text-sm font-bold ml-auto">${(item.price * item.quantity).toFixed(2)}</span>
+                          <span className="text-sm font-bold ml-auto">${(Number(item.price) * item.quantity).toFixed(2)}</span>
                        </div>
                     </div>
                   </div>
@@ -556,7 +556,7 @@ const CartDrawer = ({
                 <div className="pt-4 flex justify-between items-center border-t border-stone-200/50">
                   <div>
                     <p className="text-xs text-stone-400 font-bold uppercase">Total</p>
-                    <p className="text-3xl font-bold text-charcoal">${total.toFixed(2)}</p>
+                    <p className="text-3xl font-bold text-charcoal">${Number(total).toFixed(2)}</p>
                   </div>
                   <button 
                     disabled={!address || !phone || checkoutStatus !== 'idle'}
@@ -665,7 +665,7 @@ const PaymentForm = ({ cart, onOrderSuccess, onClose }: {
           disabled={!stripe || processing}
           className="flex-[2] bg-primary text-white px-6 py-3 rounded-xl font-bold hover:bg-primary-dark transition-all disabled:opacity-50"
         >
-          {processing ? 'Processing...' : `Pay $${total.toFixed(2)}`}
+          {processing ? 'Processing...' : `Pay $${Number(total).toFixed(2)}`}
         </button>
       </div>
     </form>
@@ -820,7 +820,7 @@ const TrackingView = ({ orders, onBack }: { orders: Order[], onBack: () => void 
                 </div>
                 <div className="text-right space-y-1">
                   <span className="text-[10px] font-black text-stone-300 uppercase tracking-widest">Amount</span>
-                  <p className="text-xl font-bold">${order.totalAmount.toFixed(2)}</p>
+                  <p className="text-xl font-bold">${Number(order.totalAmount).toFixed(2)}</p>
                 </div>
               </div>
 
@@ -833,7 +833,7 @@ const TrackingView = ({ orders, onBack }: { orders: Order[], onBack: () => void 
                  {order.items.map((item, i) => (
                    <div key={i} className="flex justify-between items-center text-xs font-medium">
                       <span className="text-stone-400">{item.quantity}x {item.name}</span>
-                      <span className="font-bold">${(item.price * item.quantity).toFixed(2)}</span>
+                      <span className="font-bold">${(Number(item.price) * item.quantity).toFixed(2)}</span>
                    </div>
                  ))}
               </div>
@@ -1208,7 +1208,7 @@ export default function App() {
                       <div className="p-6 space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-primary">{product.category}</span>
-                          <span className="font-bold text-lg text-charcoal">${product.price.toFixed(2)}</span>
+                          <span className="font-bold text-lg text-charcoal">${Number(product.price).toFixed(2)}</span>
                         </div>
                         <h3 className="text-xl font-bold text-charcoal">{product.name}</h3>
                         <p className="text-stone-500 text-sm line-clamp-2">{product.description}</p>
@@ -1288,7 +1288,7 @@ export default function App() {
                           <div>
                              <p className="text-xs font-bold text-stone-400 uppercase tracking-wider">#{order.id?.slice(-6).toUpperCase()}</p>
                              <p className="text-lg font-bold">
-                                {order.items.length} item{order.items.length > 1 ? 's' : ''} • <span className="text-primary">${order.totalAmount.toFixed(2)}</span>
+                                {order.items.length} item{order.items.length > 1 ? 's' : ''} • <span className="text-primary">${Number(order.totalAmount).toFixed(2)}</span>
                              </p>
                           </div>
                           <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${order.status === 'delivered' ? 'bg-green-50 text-green-600' : 'bg-primary/5 text-primary'}`}>
