@@ -14,7 +14,9 @@ import {
   LogOut,
   Flame,
   CreditCard,
-  Trash2
+  Trash2,
+  Zap,
+  Truck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, db } from './lib/firebase';
@@ -349,21 +351,25 @@ const AdminDashboard = ({ orders, products, onRefresh }: {
   );
 };
 
-const Navbar = ({ cartCount, onOpenCart, user, isAdmin, onToggleAdmin, isAdminView }: { 
+const Navbar = ({ cartCount, onOpenCart, user, isAdmin, onToggleAdmin, isAdminView, onToggleTracking, isTrackingView, isProfileView, onToggleProfile }: { 
   cartCount: number, 
   onOpenCart: () => void, 
   user: any,
   isAdmin: boolean,
   onToggleAdmin: () => void,
-  isAdminView: boolean
+  isAdminView: boolean,
+  onToggleTracking: () => void,
+  isTrackingView: boolean,
+  isProfileView: boolean,
+  onToggleProfile: () => void
 }) => {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass">
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 cursor-pointer">
+          <div onClick={() => { if(isTrackingView) onToggleTracking(); if(isAdminView) onToggleAdmin(); if(isProfileView) onToggleProfile(); }} className="flex items-center gap-2 cursor-pointer">
             <Flame className="w-6 h-6 text-primary" />
-            <span className="text-xl font-bold tracking-tight">Grilled & Co.</span>
+            <span className="text-xl font-bold tracking-tight text-white mix-blend-difference">Grilled & Co.</span>
           </div>
           {isAdmin && (
             <button 
@@ -376,7 +382,23 @@ const Navbar = ({ cartCount, onOpenCart, user, isAdmin, onToggleAdmin, isAdminVi
         </div>
         
         <div className="flex items-center gap-6">
-          {!isAdminView && (
+          {user && !isAdminView && (
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={onToggleProfile}
+                className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-lg border transition-all ${isProfileView ? 'bg-stone-100 text-charcoal border-stone-100' : 'text-stone-400 border-stone-200 hover:border-stone-400'}`}
+              >
+                Profile
+              </button>
+              <button 
+                onClick={onToggleTracking}
+                className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-lg border transition-all ${isTrackingView ? 'bg-charcoal text-white border-charcoal' : 'text-stone-400 border-stone-200 hover:border-charcoal hover:text-charcoal'}`}
+              >
+                Track Order
+              </button>
+            </div>
+          )}
+          {!isAdminView && !isTrackingView && !isProfileView && (
             <button 
               onClick={onOpenCart}
               className="relative p-2 hover:bg-stone-50 rounded-full transition-colors"
@@ -426,17 +448,25 @@ const CartDrawer = ({
   cart, 
   updateQuantity, 
   onCheckout,
-  checkoutStatus
+  checkoutStatus,
+  userProfile
 }: { 
   isOpen: boolean, 
   onClose: () => void, 
   cart: CartItem[], 
   updateQuantity: (id: string, delta: number) => void, 
   onCheckout: (details: { address: string, phone: string }) => void,
-  checkoutStatus: 'idle' | 'processing' | 'payment-step' | 'success'
+  checkoutStatus: 'idle' | 'processing' | 'payment-step' | 'success',
+  userProfile: { phone: string, address: string } | null
 }) => {
-  const [address, setAddress] = useState('');
-  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState(userProfile?.address || '');
+  const [phone, setPhone] = useState(userProfile?.phone || '');
+
+  useEffect(() => {
+    if (userProfile && !address) setAddress(userProfile.address);
+    if (userProfile && !phone) setPhone(userProfile.phone);
+  }, [userProfile]);
+
   const total = cart.reduce((s, i) => s + (i.price * i.quantity), 0);
 
   return (
@@ -644,10 +674,184 @@ const PaymentForm = ({ cart, onOrderSuccess, onClose }: {
 
 // --- Main App ---
 
+const ProfileView = ({ user, onBack, onUpdate }: { user: any, onBack: () => void, onUpdate: (data: { phone: string, address: string }) => void }) => {
+  const [profile, setProfile] = useState<{ displayName: string, phone: string, address: string }>({
+    displayName: user?.displayName || '',
+    phone: '',
+    address: ''
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const { userService } = await import('./services/dataService');
+      const p = await userService.getProfile(user.uid);
+      if (p) {
+        setProfile({
+          displayName: p.display_name || user.displayName || '',
+          phone: p.phone || '',
+          address: p.address || ''
+        });
+      }
+      setLoading(false);
+    };
+    fetchProfile();
+  }, [user]);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    const { userService } = await import('./services/dataService');
+    const success = await userService.updateProfile(user.uid, profile);
+    if (success) {
+      onUpdate({ phone: profile.phone, address: profile.address });
+      alert('Profile updated successfully!');
+    } else {
+      alert('Failed to update profile.');
+    }
+    setSaving(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="pt-40 flex flex-col items-center gap-4">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Loading Profile...</p>
+      </div>
+    );
+  }
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="pt-32 pb-24 px-4 max-w-xl mx-auto space-y-12"
+    >
+      <div className="flex items-center justify-between">
+        <h1 className="text-5xl font-black tracking-tight">Profile</h1>
+        <button onClick={onBack} className="w-10 h-10 flex items-center justify-center bg-stone-100 rounded-full hover:bg-stone-200 transition-all">
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      <form onSubmit={handleSave} className="space-y-8 bg-white p-8 rounded-[2.5rem] border border-stone-100 shadow-soft">
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest pl-4">Full Name</label>
+            <div className="relative">
+              <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-300" />
+              <input 
+                type="text"
+                value={profile.displayName}
+                onChange={e => setProfile({...profile, displayName: e.target.value})}
+                className="w-full pl-12 pr-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl focus:ring-2 focus:ring-primary/20 transition-all outline-none font-bold"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest pl-4">Phone Number</label>
+            <div className="relative">
+              <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-300" />
+              <input 
+                type="tel"
+                value={profile.phone}
+                onChange={e => setProfile({...profile, phone: e.target.value})}
+                placeholder="+254 700 000 000"
+                className="w-full pl-12 pr-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl focus:ring-2 focus:ring-primary/20 transition-all outline-none font-bold"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest pl-4">Delivery Address</label>
+            <div className="relative">
+              <MapPin className="absolute left-4 top-6 w-4 h-4 text-stone-300" />
+              <textarea 
+                value={profile.address}
+                onChange={e => setProfile({...profile, address: e.target.value})}
+                placeholder="Apartment, Street, Area..."
+                rows={4}
+                className="w-full pl-12 pr-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl focus:ring-2 focus:ring-primary/20 transition-all outline-none resize-none font-bold"
+              />
+            </div>
+          </div>
+        </div>
+
+        <button 
+          type="submit"
+          disabled={saving}
+          className="w-full py-4 bg-charcoal text-white rounded-2xl font-bold hover:bg-stone-800 transition-all flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50"
+        >
+          {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Update Account Details'}
+        </button>
+      </form>
+    </motion.div>
+  );
+};
+
+const TrackingView = ({ orders, onBack }: { orders: Order[], onBack: () => void }) => {
+  return (
+    <div className="pt-32 pb-24 px-4 max-w-3xl mx-auto space-y-12">
+      <div className="flex items-center justify-between">
+        <h1 className="text-4xl">Order Progress</h1>
+        <button onClick={onBack} className="text-xs font-bold text-stone-400 hover:text-charcoal transition-colors">Back to Menu</button>
+      </div>
+
+      {orders.length === 0 ? (
+        <div className="p-16 text-center bg-stone-50 rounded-3xl border border-stone-100">
+           <p className="text-stone-400">No active orders tracked in the cloud.</p>
+        </div>
+      ) : (
+        <div className="space-y-8">
+          {orders.map(order => (
+            <motion.div 
+              key={order.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white border border-stone-100 rounded-[2.5rem] p-8 shadow-soft space-y-8"
+            >
+              <div className="flex items-center justify-between pb-6 border-b border-stone-50">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-black text-stone-300 uppercase tracking-widest">Order ID</span>
+                  <p className="font-mono text-sm font-bold">{order.id?.slice(-8).toUpperCase()}</p>
+                </div>
+                <div className="text-right space-y-1">
+                  <span className="text-[10px] font-black text-stone-300 uppercase tracking-widest">Amount</span>
+                  <p className="text-xl font-bold">${order.totalAmount.toFixed(2)}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                 <h4 className="text-xs font-bold text-stone-400 uppercase tracking-widest text-center">Current Phase</h4>
+                 <StatusStepper currentStatus={order.status} />
+              </div>
+
+              <div className="bg-stone-50 p-6 rounded-2xl space-y-3">
+                 {order.items.map((item, i) => (
+                   <div key={i} className="flex justify-between items-center text-xs font-medium">
+                      <span className="text-stone-400">{item.quantity}x {item.name}</span>
+                      <span className="font-bold">${(item.price * item.quantity).toFixed(2)}</span>
+                   </div>
+                 ))}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAdminView, setIsAdminView] = useState(false);
+  const [isTrackingView, setIsTrackingView] = useState(false);
+  const [isProfileView, setIsProfileView] = useState(false);
+  const [userProfile, setUserProfile] = useState<{ phone: string, address: string } | null>(null);
   const [checkoutDetails, setCheckoutDetails] = useState<{ address: string, phone: string } | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -661,6 +865,14 @@ export default function App() {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
+        // Sync with Aiven Backend
+        import('./services/dataService').then(({ userService }) => {
+          userService.syncUser(u);
+          userService.getProfile(u.uid).then(p => {
+            if (p) setUserProfile({ phone: p.phone, address: p.address });
+          });
+        });
+
         const profileRef = doc(db, `users/${u.uid}/profile/private`);
         const profileSnap = await getDoc(profileRef);
         const isTester = u.email === 'tpaulbenedictsandy@gmail.com';
@@ -680,6 +892,8 @@ export default function App() {
       } else {
         setIsAdmin(false);
         setIsAdminView(false);
+        setIsTrackingView(false);
+        setIsProfileView(false);
       }
     });
 
@@ -787,7 +1001,11 @@ export default function App() {
         onOpenCart={() => setIsCartOpen(true)} 
         isAdmin={isAdmin}
         isAdminView={isAdminView}
-        onToggleAdmin={() => setIsAdminView(!isAdminView)}
+        onToggleAdmin={() => { setIsAdminView(!isAdminView); setIsTrackingView(false); setIsProfileView(false); }}
+        isTrackingView={isTrackingView}
+        onToggleTracking={() => { setIsTrackingView(!isTrackingView); setIsAdminView(false); setIsProfileView(false); }}
+        isProfileView={isProfileView}
+        onToggleProfile={() => { setIsProfileView(!isProfileView); setIsAdminView(false); setIsTrackingView(false); }}
       />
       
       {isAdminView ? (
@@ -798,6 +1016,14 @@ export default function App() {
             fetchProducts();
             fetchBasicData();
           }} 
+        />
+      ) : isTrackingView ? (
+        <TrackingView orders={myOrders} onBack={() => setIsTrackingView(false)} />
+      ) : isProfileView ? (
+        <ProfileView 
+          user={user} 
+          onBack={() => setIsProfileView(false)} 
+          onUpdate={(data) => setUserProfile(data)}
         />
       ) : (
         <>
@@ -814,13 +1040,13 @@ export default function App() {
               <span className="text-[11px] font-bold uppercase tracking-wider">The Best Charcoal Grill in Town</span>
             </div>
             
-            <h1 className="text-5xl sm:text-7xl font-bold leading-tight">
-              Authentic <br />
-              <span className="text-primary tracking-tight">Fire-Grilled.</span>
+            <h1 className="text-6xl md:text-8xl font-black tracking-tight leading-[0.9]">
+              SMOKED TO <br />
+              <span className="text-primary italic">PERFECTION.</span>
             </h1>
             
-            <p className="text-xl text-stone-500 max-w-lg leading-relaxed">
-              We believe in the purity of fire. Small batches, fresh ingredients, and the intense heat of real oak charcoal.
+            <p className="text-xl text-stone-400 max-w-lg leading-relaxed font-medium">
+              Experience the authentic taste of charcoal-grilled mastery. Our heritage-breed chickens are slow-smoked for 6 hours and finished with signature hand-crafted glazes.
             </p>
             
             <div className="flex flex-wrap gap-4 pt-4">
@@ -830,9 +1056,14 @@ export default function App() {
               >
                 Explore Menu
               </button>
-              <div className="flex items-center gap-3 px-6 py-4 border border-stone-100 rounded-xl bg-white shadow-soft">
-                <Clock className="w-5 h-5 text-primary" />
-                <span className="text-xs font-bold uppercase tracking-wider">Fast Delivery</span>
+              <div className="flex items-center gap-3 px-6 py-4 bg-white/5 border border-white/10 rounded-xl backdrop-blur-md group hover:bg-white/10 transition-all cursor-default">
+                <div className="p-2 bg-primary/20 rounded-lg group-hover:bg-primary/30 transition-colors">
+                  <Clock className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Delivery</span>
+                  <span className="text-sm font-bold text-white">Under 30 Mins</span>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -868,6 +1099,52 @@ export default function App() {
             <p className="text-stone-500 text-lg leading-relaxed">
               Born from a roadside stall in 1982, our recipe remains true to its roots. We use local ingredients, a signature blend of herbs and spices, and our traditional charcoal grilling method. No shortcuts, just honest food.
             </p>
+        </div>
+      </section>
+
+      {/* Delivery Features Section */}
+      <section className="py-24 bg-white overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="grid md:grid-cols-3 gap-12">
+            <motion.div 
+              whileHover={{ y: -5 }}
+              className="p-10 bg-stone-50 rounded-[3rem] space-y-6 group border border-transparent hover:border-primary/20 transition-all"
+            >
+              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-soft group-hover:bg-primary group-hover:text-white transition-all">
+                <Zap className="w-8 h-8" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-bold">Express Delivery</h3>
+                <p className="text-stone-500 text-sm leading-relaxed">Our specialized fleet ensures your grilled feast arrives piping hot in under 30 minutes, or it's on us.</p>
+              </div>
+            </motion.div>
+
+            <motion.div 
+              whileHover={{ y: -5 }}
+              className="p-10 bg-stone-50 rounded-[3rem] space-y-6 group border border-transparent hover:border-primary/20 transition-all"
+            >
+              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-soft group-hover:bg-primary group-hover:text-white transition-all">
+                <Flame className="w-8 h-8" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-bold">Always Fresh</h3>
+                <p className="text-stone-500 text-sm leading-relaxed">We never pre-cook. Every order is fired to perfection right when it's placed, ensuring maximum succulence.</p>
+              </div>
+            </motion.div>
+
+            <motion.div 
+              whileHover={{ y: -5 }}
+              className="p-10 bg-stone-50 rounded-[3rem] space-y-6 group border border-transparent hover:border-primary/20 transition-all"
+            >
+              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-soft group-hover:bg-primary group-hover:text-white transition-all">
+                <Truck className="w-8 h-8" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-bold">Live Tracking</h3>
+                <p className="text-stone-500 text-sm leading-relaxed">Watch your chicken's journey from the charcoal grill to your doorstep with our real-time GPS tracking.</p>
+              </div>
+            </motion.div>
+          </div>
         </div>
       </section>
 
@@ -1038,6 +1315,7 @@ export default function App() {
         updateQuantity={updateQuantity}
         onCheckout={handleCheckout}
         checkoutStatus={checkoutStatus}
+        userProfile={userProfile}
       />
 
       <AnimatePresence>

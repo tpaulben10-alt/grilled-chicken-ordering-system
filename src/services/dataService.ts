@@ -50,13 +50,20 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 
 export const productService = {
   async getAll(): Promise<Product[]> {
-    const path = 'products';
     try {
-      const snap = await getDocs(collection(db, path));
-      return snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
+      const response = await fetch('/api/products');
+      if (!response.ok) throw new Error('API failed');
+      return await response.json();
     } catch (e) {
-      handleFirestoreError(e, OperationType.LIST, path);
-      return [];
+      console.warn('Backend products failed, falling back to Firebase or empty');
+      const path = 'products';
+      try {
+        const snap = await getDocs(collection(db, path));
+        return snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
+      } catch (err) {
+        handleFirestoreError(err, OperationType.LIST, path);
+        return [];
+      }
     }
   },
 
@@ -83,16 +90,77 @@ export const productService = {
   async delete(id: string): Promise<void> {
     const path = `products/${id}`;
     try {
-      // Note: Delete is not explicitly covered in my rules yet, but I'll add it if needed. 
-      // For now we use isAvailable for soft delete mostly.
+      // Soft delete logic if needed
     } catch (e) {
       handleFirestoreError(e, OperationType.DELETE, path);
     }
   }
 };
 
+export const userService = {
+  async syncUser(user: any) {
+    try {
+      await fetch('/api/users/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL
+        })
+      });
+    } catch (e) {
+      console.error('User sync failed:', e);
+    }
+  },
+
+  async getProfile(userId: string) {
+    try {
+      const response = await fetch(`/api/users/${userId}`);
+      if (!response.ok) throw new Error('Profile fetch failed');
+      return await response.json();
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  },
+
+  async updateProfile(userId: string, data: { displayName: string, phone: string, address: string }) {
+    try {
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!response.ok) throw new Error('Profile update failed');
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  }
+};
+
 export const orderService = {
   async placeOrder(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt' | 'status'>): Promise<string> {
+    try {
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...order,
+          status: OrderStatus.PENDING
+        })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        return data.id;
+      }
+    } catch (e) {
+      console.error('Backend order failed, falling back to Firebase');
+    }
+
     const path = 'orders';
     try {
       const docRef = await addDoc(collection(db, path), {
@@ -110,6 +178,24 @@ export const orderService = {
 
   async getMyOrders(): Promise<Order[]> {
     if (!auth.currentUser) return [];
+    
+    try {
+      const response = await fetch(`/api/orders/my/${auth.currentUser.uid}`);
+      if (response.ok) {
+        const rows = await response.json();
+        return rows.map((r: any) => ({
+          ...r,
+          totalAmount: parseFloat(r.total_amount),
+          deliveryAddress: r.delivery_address,
+          transactionId: r.transaction_id,
+          createdAt: new Date(r.created_at),
+          updatedAt: new Date(r.updated_at)
+        }));
+      }
+    } catch (e) {
+      console.warn('Backend orders fetch failed, falling back to Firebase');
+    }
+
     const path = 'orders';
     try {
       const q = query(
