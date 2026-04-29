@@ -1,36 +1,27 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,600;1,300;1,600&family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;900&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Outfit", sans-serif;
-  --font-serif: "Cormorant Garamond", serif;
   
-  --color-primary: #ea580c; /* Burnt Orange */
-  --color-primary-dark: #c2410c;
-  --color-cream: #fbfbf9;
-  --color-charcoal: #141413;
-  --color-gold: #b59f7d;
+  --color-primary: #f97316; /* Clean Orange */
+  --color-primary-dark: #ea580c;
+  --color-background: #ffffff;
+  --color-surface: #f8fafc;
+  --color-charcoal: #0f172a;
 }
 
 @layer base {
   body {
-    @apply bg-cream text-charcoal font-sans antialiased;
+    @apply bg-background text-charcoal font-sans antialiased;
   }
   
   h1, h2, h3, h4 {
-    @apply font-serif leading-tight;
+    @apply font-display font-bold leading-tight tracking-tight;
   }
 }
 
-.font-display {
-  font-family: var(--font-display);
-}
-
-.font-serif {
-  font-family: var(--font-serif);
-}
-
-.glass {
-  @apply bg-white/70 backdrop-blur-xl border border-white/10;
+.shadow-soft {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
 }

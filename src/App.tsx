@@ -34,6 +34,61 @@ const stripePromise = loadStripe((process.env as any).VITE_STRIPE_PUBLISHABLE_KE
 
 // --- Components ---
 
+const StatusStepper = ({ currentStatus }: { currentStatus: OrderStatus }) => {
+  const steps = [
+    { id: OrderStatus.PENDING, label: 'Placed', icon: ShoppingBag },
+    { id: OrderStatus.PREPARING, label: 'Grilling', icon: Flame },
+    { id: OrderStatus.OUT_FOR_DELIVERY, label: 'On Way', icon: Clock },
+    { id: OrderStatus.DELIVERED, label: 'Served', icon: CheckCircle2 },
+  ];
+
+  if (currentStatus === OrderStatus.CANCELLED) {
+    return (
+      <div className="flex items-center gap-3 px-6 py-3 bg-red-50 text-red-600 rounded-2xl border border-red-100 justify-center">
+        <X className="w-5 h-5 animate-pulse" />
+        <span className="text-xs font-black uppercase tracking-widest">Order Terminated</span>
+      </div>
+    );
+  }
+
+  const currentIdx = steps.findIndex(s => s.id === currentStatus);
+
+  return (
+    <div className="flex items-center justify-between w-full max-w-md mx-auto pt-4">
+      {steps.map((step, idx) => {
+        const isCompleted = currentIdx >= idx;
+        const isActive = step.id === currentStatus;
+        const Icon = step.icon;
+
+        return (
+          <React.Fragment key={step.id}>
+            <div className="flex flex-col items-center gap-2 relative z-10">
+              <div className={`
+                w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300
+                ${isCompleted ? 'bg-primary text-white shadow-md' : 'bg-stone-50 text-stone-200 border border-stone-100'}
+              `}>
+                <Icon className={`w-4 h-4 ${isActive ? 'animate-pulse' : ''}`} />
+              </div>
+              <span className={`text-[9px] font-bold uppercase tracking-wider transition-colors duration-300 ${isCompleted ? 'text-charcoal' : 'text-stone-300'}`}>
+                {step.label}
+              </span>
+            </div>
+            {idx < steps.length - 1 && (
+              <div className="flex-1 h-px bg-stone-100 mx-1 -mt-4">
+                <motion.div 
+                  initial={{ width: '0%' }}
+                  animate={{ width: isCompleted && currentIdx > idx ? '100%' : '0%' }}
+                  className="h-full bg-primary/20"
+                />
+              </div>
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+};
+
 const AdminDashboard = ({ orders, products, onRefresh }: { 
   orders: Order[], 
   products: Product[],
@@ -62,27 +117,23 @@ const AdminDashboard = ({ orders, products, onRefresh }: {
 
   return (
     <div className="pt-32 pb-24 px-4 max-w-7xl mx-auto space-y-16">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 border-b border-stone-200 pb-12">
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-             <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-             <span className="text-[10px] font-black uppercase tracking-[0.4em] text-stone-400">Control Plane</span>
-          </div>
-          <h1 className="text-6xl font-serif italic">The Kitchen Desk</h1>
-          <p className="text-stone-500 max-w-md font-medium tracking-tight">Real-time oversight of the fire and the flow.</p>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-stone-100 pb-8">
+        <div className="space-y-1">
+          <h1 className="text-4xl">Order Management</h1>
+          <p className="text-stone-500 text-sm">Monitor and update all incoming orders.</p>
         </div>
-        <div className="flex bg-stone-100 p-1.5 rounded-2xl border border-stone-200">
+        <div className="flex bg-stone-50 p-1 rounded-xl border border-stone-100">
            <button 
             onClick={() => setActiveTab('orders')}
-            className={`px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'orders' ? 'bg-white text-charcoal shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}
+            className={`px-6 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'orders' ? 'bg-white text-charcoal shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}
            >
             Orders ({orders.length})
            </button>
            <button 
             onClick={() => setActiveTab('menu')}
-            className={`px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'menu' ? 'bg-white text-charcoal shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}
+            className={`px-6 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'menu' ? 'bg-white text-charcoal shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}
            >
-            Menu Studio
+            Edit Menu
            </button>
         </div>
       </div>
@@ -90,11 +141,8 @@ const AdminDashboard = ({ orders, products, onRefresh }: {
       {activeTab === 'orders' ? (
         <div className="grid gap-8">
           {orders.length === 0 ? (
-            <div className="p-24 text-center glass rounded-[3rem] border border-stone-200">
-              <div className="w-16 h-16 bg-stone-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                <ShoppingBag className="w-8 h-8 text-stone-200" />
-              </div>
-              <p className="font-serif italic text-xl text-stone-400">The quiet before the rush...</p>
+            <div className="p-16 text-center border-2 border-dashed border-stone-100 rounded-3xl">
+              <p className="text-stone-400">No active orders at the moment.</p>
             </div>
           ) : (
             orders.map(order => (
@@ -102,111 +150,102 @@ const AdminDashboard = ({ orders, products, onRefresh }: {
                 key={order.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white border border-stone-100 rounded-[2.5rem] p-8 shadow-sm flex flex-col md:flex-row gap-12 group hover:shadow-xl transition-all duration-500"
+                className="bg-white border border-stone-100 rounded-3xl p-6 shadow-soft flex flex-col md:flex-row gap-8 transition-shadow hover:shadow-md"
               >
                 <div className="flex-1 space-y-6">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <span className="px-3 py-1 bg-stone-100 text-stone-500 rounded-lg text-[10px] font-black tracking-widest uppercase">#{order.id?.slice(-6).toUpperCase()}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-primary font-bold text-sm">
-                       <MapPin className="w-4 h-4" />
+                    <span className="text-xs font-bold text-stone-400 uppercase tracking-wider">Order #{order.id?.slice(-6).toUpperCase()}</span>
+                    <div className="flex items-center gap-2 text-stone-500 font-medium text-sm">
+                       <MapPin className="w-4 h-4 text-stone-300" />
                        <span className="truncate max-w-[200px]">{order.deliveryAddress}</span>
                     </div>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {order.items.map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-center text-sm border-b border-stone-50 pb-2">
-                        <div className="flex items-center gap-3">
-                            <span className="w-6 h-6 bg-cream rounded flex items-center justify-center font-bold text-[10px] text-primary">{item.quantity}</span>
-                            <span className="text-charcoal font-bold font-serif italic text-xl">{item.name}</span>
+                      <div key={idx} className="flex justify-between items-center text-sm">
+                        <div className="flex items-center gap-2">
+                            <span className="font-bold text-primary">{item.quantity}x</span>
+                            <span className="text-charcoal font-medium">{item.name}</span>
                         </div>
-                        <span className="font-display font-medium text-stone-400">${(item.price * item.quantity).toFixed(2)}</span>
+                        <span className="text-stone-400">${(item.price * item.quantity).toFixed(2)}</span>
                       </div>
                     ))}
                   </div>
 
-                  <div className="pt-4 flex justify-between items-end">
-                    <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-stone-300 mb-1">Customer Info</p>
-                        <div className="flex items-center gap-2 text-charcoal font-bold">
-                            <Phone className="w-4 h-4 text-primary" />
-                            <span>{order.phone}</span>
-                        </div>
-                    </div>
-                    <div className="flex-1 px-8 border-x border-stone-100 mx-8">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-stone-300 mb-1">Payment Intel</p>
-                        <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-2">
-                                <CreditCard className={`w-3 h-3 ${order.paymentStatus === 'success' ? 'text-green-500' : 'text-stone-300'}`} />
-                                <span className={`text-[10px] font-black uppercase tracking-widest ${order.paymentStatus === 'success' ? 'text-green-600' : 'text-stone-400'}`}>
-                                    {order.paymentStatus || 'unknown'}
-                                </span>
-                            </div>
-                            <span className="text-[9px] font-mono text-stone-400 break-all opacity-50">TX: {order.transactionId || '---'}</span>
-                        </div>
+                  <div className="pt-4 flex justify-between items-center bg-surface p-4 rounded-xl">
+                    <div className="flex items-center gap-2">
+                        <Phone className="w-4 h-4 text-stone-400" />
+                        <span className="text-sm font-medium">{order.phone}</span>
                     </div>
                     <div className="text-right">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-stone-300 mb-1">Grand Total</p>
-                        <p className="text-3xl font-display font-black text-charcoal">${order.totalAmount.toFixed(2)}</p>
+                        <span className="text-xs text-stone-400 uppercase font-bold mr-2">Total</span>
+                        <span className="text-2xl font-bold">${order.totalAmount.toFixed(2)}</span>
                     </div>
                   </div>
+
+                  <StatusStepper currentStatus={order.status} />
                 </div>
-                
-                <div className="md:w-72 bg-stone-50/50 rounded-3xl p-6 border border-stone-100 space-y-4">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-1">Order Execution</label>
-                  <select 
-                    value={order.status}
-                    onChange={(e) => handleUpdateOrderStatus(order.id!, e.target.value as OrderStatus)}
-                    className="w-full bg-white border border-stone-200 p-4 rounded-2xl font-bold text-sm focus:ring-2 focus:ring-primary outline-none transition-all cursor-pointer shadow-sm"
-                  >
-                    {Object.values(OrderStatus).map(status => (
-                      <option key={status} value={status}>{status.replace(/-/g, ' ').toUpperCase()}</option>
-                    ))}
-                  </select>
-                  <div className={`p-4 rounded-2xl flex items-center justify-center gap-2 transition-colors ${order.status === 'delivered' ? 'bg-green-50 text-green-600' : 'bg-primary/5 text-primary'}`}>
-                    <div className={`w-2 h-2 rounded-full ${order.status === 'delivered' ? 'bg-green-600' : 'bg-primary animate-pulse'}`} />
-                    <span className="text-xs font-black uppercase tracking-widest">{order.status.replace(/-/g, ' ')}</span>
+
+                <div className="md:w-64 border-l border-stone-100 md:pl-8 space-y-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Update Status</label>
+                    <select 
+                      value={order.status}
+                      onChange={(e) => handleUpdateOrderStatus(order.id!, e.target.value as OrderStatus)}
+                      className="w-full mt-1 bg-surface border border-stone-200 p-3 rounded-xl font-medium text-sm focus:ring-2 focus:ring-primary outline-none transition-all cursor-pointer"
+                    >
+                      {Object.values(OrderStatus).map(status => (
+                        <option key={status} value={status}>{status.replace(/-/g, ' ').toUpperCase()}</option>
+                      ))}
+                    </select>
                   </div>
+                  {order.status === OrderStatus.PENDING && (
+                    <button 
+                      onClick={() => handleUpdateOrderStatus(order.id!, OrderStatus.CANCELLED)}
+                      className="w-full py-3 bg-red-50 text-red-500 rounded-xl text-xs font-bold hover:bg-red-100 transition-colors flex items-center justify-center gap-2 border border-red-100"
+                    >
+                      <X className="w-4 h-4" /> Cancel Order
+                    </button>
+                  )}
                 </div>
               </motion.div>
             ))
           )}
         </div>
       ) : (
-        <div className="space-y-12">
-          <div className="flex justify-between items-end">
+        <div className="space-y-8">
+          <div className="flex justify-between items-center bg-stone-50 p-6 rounded-2xl">
              <div className="space-y-1">
-                <h2 className="text-4xl font-serif italic">Menu Manifest</h2>
-                <p className="text-stone-400 text-xs font-black uppercase tracking-[0.2em]">Configuring the offer</p>
+                <h2 className="text-2xl">Menu Items</h2>
+                <p className="text-stone-400 text-xs">Manage your restaurant offerings.</p>
              </div>
              <button 
               onClick={() => setEditingProduct({ name: '', price: 0, category: 'Mains', isAvailable: true })}
-              className="bg-charcoal text-white px-8 py-4 rounded-full font-black uppercase tracking-widest text-[10px] flex items-center gap-3 shadow-xl hover:bg-stone-800 transition-all active:scale-95"
+              className="bg-primary text-white px-6 py-3 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95"
              >
-                <Plus className="w-4 h-4 text-primary" /> New Entry
+                <Plus className="w-4 h-4" /> Add Item
              </button>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
              {products.map(p => (
-               <div key={p.id} className="bg-white border border-stone-100 p-8 rounded-[3rem] flex items-center justify-between group hover:shadow-xl transition-all duration-500">
-                  <div className="flex items-center gap-6">
-                     <div className="w-20 h-20 bg-cream rounded-2xl overflow-hidden border border-stone-100">
-                        {p.imageUrl && <img src={p.imageUrl} alt="" className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" />}
+               <div key={p.id} className="bg-white border border-stone-100 p-4 rounded-xl flex items-center justify-between transition-shadow hover:shadow-soft">
+                  <div className="flex items-center gap-4">
+                     <div className="w-16 h-16 bg-surface rounded-lg overflow-hidden flex-shrink-0">
+                        {p.imageUrl && <img src={p.imageUrl} alt="" className="w-full h-full object-cover" />}
                      </div>
-                     <div className="flex flex-col">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">{p.category}</span>
-                        <h4 className="font-serif font-bold text-2xl italic leading-none mb-2">{p.name}</h4>
-                        <p className="font-display text-lg text-stone-400 tracking-tighter">${p.price.toFixed(2)}</p>
+                     <div className="flex flex-col min-w-0">
+                        <span className="text-[10px] font-bold text-primary uppercase">{p.category}</span>
+                        <h4 className="font-bold text-base truncate">{p.name}</h4>
+                        <p className="text-stone-400 font-bold">${p.price.toFixed(2)}</p>
                      </div>
                   </div>
                   <button 
                     onClick={() => setEditingProduct(p)}
-                    className="w-12 h-12 flex items-center justify-center bg-stone-50 text-stone-300 hover:bg-primary/10 hover:text-primary rounded-full transition-all"
+                    className="w-10 h-10 flex items-center justify-center bg-stone-50 text-stone-400 hover:bg-primary hover:text-white rounded-full transition-all flex-shrink-0"
                   >
-                     <ChevronRight className="w-6 h-6" />
+                     <ChevronRight className="w-5 h-5" />
                   </button>
                </div>
              ))}
@@ -227,35 +266,35 @@ const AdminDashboard = ({ orders, products, onRefresh }: {
                  <Flame className="w-64 h-64" />
               </div>
               
-              <h3 className="text-4xl font-serif italic mb-8">{editingProduct.id ? 'Refine Entry' : 'New Creation'}</h3>
-              <form onSubmit={handleSaveProduct} className="space-y-6 relative z-10">
-                <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-4">Product Identity</label>
+              <h3 className="text-3xl font-bold mb-6">{editingProduct.id ? 'Edit Product' : 'Add Product'}</h3>
+              <form onSubmit={handleSaveProduct} className="space-y-4 relative z-10">
+                <div className="space-y-1">
+                    <label className="text-xs font-bold text-stone-400 uppercase tracking-wider ml-1">Product Name</label>
                     <input 
-                    placeholder="Product Name"
-                    className="w-full bg-stone-50 p-5 rounded-2xl border-none outline-none font-serif italic text-xl focus:ring-2 focus:ring-primary/20 transition-all"
+                    placeholder="e.g. Grilled Chicken Wings"
+                    className="w-full bg-stone-50 p-4 rounded-xl border border-stone-100 outline-none font-medium focus:ring-2 focus:ring-primary/20 transition-all"
                     value={editingProduct.name}
                     onChange={e => setEditingProduct({...editingProduct, name: e.target.value})}
                     required
                     />
                 </div>
 
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-4">Valuation ($)</label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-stone-400 uppercase tracking-wider ml-1">Price ($)</label>
                     <input 
                         type="number" step="0.01"
                         placeholder="0.00"
-                        className="w-full bg-stone-50 p-5 rounded-2xl border-none outline-none font-display font-bold text-center focus:ring-2 focus:ring-primary/20 transition-all"
+                        className="w-full bg-stone-50 p-4 rounded-xl border border-stone-100 outline-none font-bold focus:ring-2 focus:ring-primary/20 transition-all"
                         value={editingProduct.price || ''}
                         onChange={e => setEditingProduct({...editingProduct, price: parseFloat(e.target.value)})}
                         required
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-4">Manifest Category</label>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-stone-400 uppercase tracking-wider ml-1">Category</label>
                     <select 
-                        className="w-full bg-stone-50 p-5 rounded-2xl border-none outline-none font-bold text-sm focus:ring-2 focus:ring-primary/20 transition-all"
+                        className="w-full bg-stone-50 p-4 rounded-xl border border-stone-100 outline-none font-bold text-sm focus:ring-2 focus:ring-primary/20 transition-all"
                         value={editingProduct.category}
                         onChange={e => setEditingProduct({...editingProduct, category: e.target.value})}
                     >
@@ -266,27 +305,27 @@ const AdminDashboard = ({ orders, products, onRefresh }: {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-4">Artisanal Description</label>
+                <div className="space-y-1">
+                    <label className="text-xs font-bold text-stone-400 uppercase tracking-wider ml-1">Description</label>
                     <textarea 
-                    placeholder="Describe the flavor profile..."
-                    className="w-full bg-stone-50 p-5 rounded-2xl border-none outline-none font-medium min-h-[120px] focus:ring-2 focus:ring-primary/20 transition-all leading-relaxed"
+                    placeholder="Describe this delicious item..."
+                    className="w-full bg-stone-50 p-4 rounded-xl border border-stone-100 outline-none font-medium min-h-[100px] focus:ring-2 focus:ring-primary/20 transition-all"
                     value={editingProduct.description || ''}
                     onChange={e => setEditingProduct({...editingProduct, description: e.target.value})}
                     />
                 </div>
 
-                <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-4">Visual Asset URL</label>
+                <div className="space-y-1">
+                    <label className="text-xs font-bold text-stone-400 uppercase tracking-wider ml-1">Image URL</label>
                     <input 
-                    placeholder="https://images.unsplash.com/..."
-                    className="w-full bg-stone-50 p-5 rounded-2xl border-none outline-none font-mono text-[10px]"
+                    placeholder="https://..."
+                    className="w-full bg-stone-50 p-4 rounded-xl border border-stone-100 outline-none text-xs"
                     value={editingProduct.imageUrl || ''}
                     onChange={e => setEditingProduct({...editingProduct, imageUrl: e.target.value})}
                     />
                 </div>
 
-                <div className="flex items-center gap-4 py-2 px-4 bg-cream rounded-2xl">
+                <div className="flex items-center gap-3 py-3 px-4 bg-stone-50 rounded-xl">
                    <input 
                     type="checkbox" 
                     id="isAvailable"
@@ -294,12 +333,12 @@ const AdminDashboard = ({ orders, products, onRefresh }: {
                     checked={editingProduct.isAvailable} 
                     onChange={e => setEditingProduct({...editingProduct, isAvailable: e.target.checked})}
                    />
-                   <label htmlFor="isAvailable" className="font-bold text-xs uppercase tracking-widest text-stone-600 cursor-pointer">Currently Serving</label>
+                   <label htmlFor="isAvailable" className="font-bold text-sm text-stone-600 cursor-pointer">Available for Order</label>
                 </div>
                 
-                <div className="flex gap-6 pt-4">
-                   <button type="button" onClick={() => setEditingProduct(null)} className="flex-1 py-5 font-black uppercase tracking-widest text-[10px] text-stone-400 hover:text-stone-600">Withdraw</button>
-                   <button type="submit" className="flex-[2] bg-charcoal text-white py-5 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-2xl shadow-charcoal/20 hover:bg-stone-800 transition-all active:scale-95">Commit Entry</button>
+                <div className="flex gap-4 pt-4">
+                   <button type="button" onClick={() => setEditingProduct(null)} className="flex-1 py-4 font-bold text-stone-400 hover:text-stone-600 transition-colors">Cancel</button>
+                   <button type="submit" className="flex-[2] bg-primary text-white py-4 rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95">Save Changes</button>
                 </div>
               </form>
             </motion.div>
@@ -320,23 +359,18 @@ const Navbar = ({ cartCount, onOpenCart, user, isAdmin, onToggleAdmin, isAdminVi
 }) => {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass">
-      <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 group cursor-pointer">
-            <div className="w-12 h-12 bg-charcoal rounded-full flex items-center justify-center text-white transition-transform group-hover:rotate-12">
-              <Flame className="w-7 h-7 text-primary" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xl font-display font-black tracking-tight leading-none">GRILLED</span>
-              <span className="text-[10px] font-bold text-primary tracking-[0.2em] leading-none">& CO.</span>
-            </div>
+          <div className="flex items-center gap-2 cursor-pointer">
+            <Flame className="w-6 h-6 text-primary" />
+            <span className="text-xl font-bold tracking-tight">Grilled & Co.</span>
           </div>
           {isAdmin && (
             <button 
               onClick={onToggleAdmin}
-              className={`ml-4 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${isAdminView ? 'bg-primary text-white border-primary' : 'text-stone-400 border-stone-200 hover:border-primary hover:text-primary'}`}
+              className={`ml-4 px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all ${isAdminView ? 'bg-primary text-white border-primary' : 'text-stone-400 border-stone-200 hover:border-primary hover:text-primary'}`}
             >
-              System Admin
+              Admin Mode
             </button>
           )}
         </div>
@@ -345,11 +379,11 @@ const Navbar = ({ cartCount, onOpenCart, user, isAdmin, onToggleAdmin, isAdminVi
           {!isAdminView && (
             <button 
               onClick={onOpenCart}
-              className="group relative p-2 hover:bg-charcoal/5 rounded-full transition-colors"
+              className="relative p-2 hover:bg-stone-50 rounded-full transition-colors"
             >
-              <ShoppingBag className="w-6 h-6 text-charcoal transition-transform group-hover:-translate-y-0.5" />
+              <ShoppingBag className="w-5 h-5 text-stone-600" />
               {cartCount > 0 && (
-                <span className="absolute top-0 right-0 bg-primary text-white text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-white ring-1 ring-primary/20">
+                <span className="absolute top-0 right-0 bg-primary text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full">
                   {cartCount}
                 </span>
               )}
@@ -360,24 +394,24 @@ const Navbar = ({ cartCount, onOpenCart, user, isAdmin, onToggleAdmin, isAdminVi
           
           {user ? (
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 p-1.5 pr-4 bg-white rounded-full border border-stone-200 shadow-sm transition-shadow hover:shadow-md">
-                <img src={user.photoURL} alt="" className="w-8 h-8 rounded-full border border-stone-100" />
-                <span className="text-xs font-bold text-stone-600 hidden sm:inline tracking-tighter">{user.displayName?.split(' ')[0]}</span>
+              <div className="flex items-center gap-2 p-1 bg-stone-50 rounded-full border border-stone-100">
+                <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full" />
+                <span className="text-[10px] font-bold text-stone-600 hidden sm:inline mr-2">{user.displayName?.split(' ')[0]}</span>
               </div>
               <button 
                 onClick={() => signOut(auth)}
-                className="p-2.5 hover:bg-red-50 hover:text-red-500 text-stone-400 rounded-full transition-all group"
+                className="p-2 hover:text-red-500 text-stone-400 transition-colors"
                 title="Log Out"
               >
-                <LogOut className="w-5 h-5 transition-transform group-hover:translate-x-0.5" />
+                <LogOut className="w-4 h-4" />
               </button>
             </div>
           ) : (
             <button 
               onClick={() => signInWithPopup(auth, new GoogleAuthProvider())}
-              className="bg-charcoal text-white px-7 py-3 rounded-full text-xs font-black uppercase tracking-widest hover:bg-stone-800 transition-all active:scale-95 shadow-lg shadow-charcoal/20"
+              className="bg-primary text-white px-5 py-2 rounded-lg text-xs font-bold hover:bg-primary-dark transition-all"
             >
-              Connect
+              Login
             </button>
           )}
         </div>
@@ -419,48 +453,46 @@ const CartDrawer = ({
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-white z-[100] shadow-2xl flex flex-col"
           >
-            <div className="p-8 border-b border-stone-100 flex items-center justify-between">
+            <div className="p-6 border-b border-stone-100 flex items-center justify-between">
               <div className="space-y-1">
-                 <h2 className="text-3xl font-serif italic">Your Selection</h2>
-                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400">{cart.length} Articles</p>
+                 <h2 className="text-2xl font-bold">Your Cart</h2>
+                 <p className="text-xs text-stone-400 font-medium">{cart.length} items</p>
               </div>
-              <button onClick={onClose} className="p-3 hover:bg-stone-50 rounded-full transition-colors">
-                <X className="w-6 h-6" />
+              <button onClick={onClose} className="p-2 hover:bg-stone-50 rounded-full transition-colors text-stone-400">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {cart.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center space-y-6">
-                  <div className="w-20 h-20 bg-cream rounded-full flex items-center justify-center">
-                    <ShoppingBag className="w-10 h-10 text-stone-200" />
+                <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
+                  <div className="w-16 h-16 bg-stone-50 rounded-full flex items-center justify-center">
+                    <ShoppingBag className="w-8 h-8 text-stone-200" />
                   </div>
-                  <p className="font-serif italic text-xl text-stone-400">The selection is currently empty.</p>
+                  <p className="text-stone-400">Your cart is empty.</p>
                   <button 
                   onClick={onClose}
-                  className="text-[10px] font-black uppercase tracking-widest text-primary border-b border-primary/20 pb-1"
+                  className="text-xs font-bold text-primary"
                   >
                     Browse the Menu
                   </button>
                 </div>
               ) : (
                 cart.map(item => (
-                  <div key={item.id} className="flex gap-6 group">
-                    <div className="w-24 h-24 bg-cream rounded-2xl overflow-hidden border border-stone-50">
+                  <div key={item.id} className="flex gap-4">
+                    <div className="w-20 h-20 bg-stone-50 rounded-xl overflow-hidden flex-shrink-0">
                       {item.imageUrl && <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />}
                     </div>
-                    <div className="flex-1 space-y-2">
-                       <div className="flex justify-between items-start">
-                          <h4 className="font-serif font-bold text-lg italic leading-tight">{item.name}</h4>
-                       </div>
-                       <p className="text-stone-400 font-display font-medium text-xs tracking-tighter">${item.price.toFixed(2)} each</p>
-                       <div className="flex items-center gap-4 pt-2">
-                          <div className="flex items-center bg-stone-50 rounded-full border border-stone-100 p-1">
-                            <button onClick={() => updateQuantity(item.id, -1)} className="w-7 h-7 flex items-center justify-center hover:bg-white rounded-full transition-all text-stone-400"><Minus className="w-3 h-3" /></button>
+                    <div className="flex-1 min-w-0">
+                       <h4 className="font-bold text-base truncate">{item.name}</h4>
+                       <p className="text-stone-400 text-xs">${item.price.toFixed(2)} each</p>
+                       <div className="flex items-center gap-3 mt-2">
+                          <div className="flex items-center bg-stone-50 rounded-lg p-1">
+                            <button onClick={() => updateQuantity(item.id, -1)} className="w-6 h-6 flex items-center justify-center hover:bg-white rounded transition-all text-stone-400"><Minus className="w-3 h-3" /></button>
                             <span className="w-8 text-center text-xs font-bold">{item.quantity}</span>
-                            <button onClick={() => updateQuantity(item.id, 1)} className="w-7 h-7 flex items-center justify-center hover:bg-white rounded-full transition-all text-stone-400"><Plus className="w-3 h-3" /></button>
+                            <button onClick={() => updateQuantity(item.id, 1)} className="w-6 h-6 flex items-center justify-center hover:bg-white rounded transition-all text-stone-400"><Plus className="w-3 h-3" /></button>
                           </div>
-                          <span className="text-sm font-display font-bold ml-auto">${(item.price * item.quantity).toFixed(2)}</span>
+                          <span className="text-sm font-bold ml-auto">${(item.price * item.quantity).toFixed(2)}</span>
                        </div>
                     </div>
                   </div>
@@ -469,40 +501,40 @@ const CartDrawer = ({
             </div>
 
             {cart.length > 0 && (
-              <div className="p-8 bg-cream border-t border-stone-100 space-y-6">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                     <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-4">Dispatch Address</label>
+              <div className="p-6 bg-stone-50 border-t border-stone-100 space-y-4">
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                     <label className="text-xs font-bold text-stone-400 uppercase tracking-wider ml-1">Delivery Address</label>
                      <input 
                       placeholder="Street, City, Postcode"
-                      className="w-full bg-white p-4 rounded-2xl border border-stone-200 outline-none font-medium text-sm focus:ring-2 focus:ring-primary/20 transition-all"
+                      className="w-full bg-white p-3 rounded-xl border border-stone-100 outline-none text-sm focus:ring-2 focus:ring-primary/20 transition-all"
                       value={address}
                       onChange={e => setAddress(e.target.value)}
                     />
                   </div>
-                  <div className="space-y-2">
-                     <label className="text-[10px] font-black uppercase tracking-widest text-stone-400 ml-4">Contact Phone</label>
+                  <div className="space-y-1">
+                     <label className="text-xs font-bold text-stone-400 uppercase tracking-wider ml-1">Phone Number</label>
                      <input 
                       placeholder="+1 (555) 000-0000"
-                      className="w-full bg-white p-4 rounded-2xl border border-stone-200 outline-none font-medium text-sm focus:ring-2 focus:ring-primary/20 transition-all"
+                      className="w-full bg-white p-3 rounded-xl border border-stone-100 outline-none text-sm focus:ring-2 focus:ring-primary/20 transition-all"
                       value={phone}
                       onChange={e => setPhone(e.target.value)}
                     />
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-stone-200/50 flex justify-between items-end">
+                <div className="pt-4 flex justify-between items-center border-t border-stone-200/50">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-stone-400 mb-1">Total Amount</p>
-                    <p className="text-4xl font-display font-black text-charcoal tracking-tighter">${total.toFixed(2)}</p>
+                    <p className="text-xs text-stone-400 font-bold uppercase">Total</p>
+                    <p className="text-3xl font-bold text-charcoal">${total.toFixed(2)}</p>
                   </div>
                   <button 
                     disabled={!address || !phone || checkoutStatus !== 'idle'}
                     onClick={() => onCheckout({ address, phone })}
-                    className="relative overflow-hidden bg-charcoal text-white px-10 py-5 rounded-2xl font-black uppercase tracking-widest text-xs disabled:opacity-30 shadow-2xl shadow-charcoal/30 flex items-center gap-3 transition-all active:scale-95"
+                    className="bg-primary text-white px-8 py-4 rounded-xl font-bold text-sm disabled:opacity-50 shadow-lg shadow-primary/20 flex items-center gap-2 transition-all active:scale-95"
                   >
-                    {checkoutStatus === 'processing' ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : <CreditCard className="w-4 h-4 text-primary" />}
-                    {checkoutStatus === 'processing' ? 'Encrypting...' : 'Initiate Checkout'}
+                    {checkoutStatus === 'processing' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+                    {checkoutStatus === 'processing' ? 'Processing...' : 'Checkout'}
                   </button>
                 </div>
               </div>
@@ -778,30 +810,29 @@ export default function App() {
             transition={{ duration: 0.8, ease: "easeOut" }}
             className="lg:col-span-7 space-y-10"
           >
-            <div className="inline-flex items-center gap-3 px-4 py-2 bg-primary/10 border border-primary/20 rounded-full">
-              <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Mastering the Ember</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/5 text-primary rounded-full">
+              <span className="text-[11px] font-bold uppercase tracking-wider">The Best Charcoal Grill in Town</span>
             </div>
             
-            <h1 className="text-7xl sm:text-9xl font-serif font-light leading-[0.85] tracking-tighter italic">
-              Simple <br />
-              <span className="text-primary not-italic font-black -ml-2">Alchemy.</span>
+            <h1 className="text-5xl sm:text-7xl font-bold leading-tight">
+              Authentic <br />
+              <span className="text-primary tracking-tight">Fire-Grilled.</span>
             </h1>
             
-            <p className="text-xl text-stone-400 max-w-lg leading-relaxed font-serif italic">
-              "We believe in the purity of fire. 24-hour slow marination, meets the intense, unyielding heat of real oak charcoal."
+            <p className="text-xl text-stone-500 max-w-lg leading-relaxed">
+              We believe in the purity of fire. Small batches, fresh ingredients, and the intense heat of real oak charcoal.
             </p>
             
-            <div className="flex flex-wrap gap-6 pt-6">
+            <div className="flex flex-wrap gap-4 pt-4">
               <button 
                 onClick={() => document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' })}
-                className="bg-primary text-white px-10 py-5 rounded-full font-black uppercase tracking-widest text-xs hover:bg-primary-dark transition-all active:scale-95 shadow-2xl shadow-primary/40"
+                className="bg-primary text-white px-8 py-4 rounded-xl font-bold text-sm hover:bg-primary-dark transition-all active:scale-95 shadow-lg shadow-primary/20"
               >
-                Reserve Your Batch
+                Explore Menu
               </button>
-              <div className="flex items-center gap-4 px-8 py-5 border border-white/10 rounded-full glass">
+              <div className="flex items-center gap-3 px-6 py-4 border border-stone-100 rounded-xl bg-white shadow-soft">
                 <Clock className="w-5 h-5 text-primary" />
-                <span className="text-xs font-bold uppercase tracking-widest">25m avg.</span>
+                <span className="text-xs font-bold uppercase tracking-wider">Fast Delivery</span>
               </div>
             </div>
           </motion.div>
@@ -817,7 +848,7 @@ export default function App() {
               <img 
                 src="https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?q=80&w=2070&auto=format&fit=crop" 
                 alt="Grilled Chicken" 
-                className="w-full aspect-[4/5] object-cover rounded-[2.5rem] shadow-2xl grayscale hover:grayscale-0 transition-all duration-700"
+                className="w-full aspect-[4/5] object-cover rounded-[2.5rem] shadow-2xl transition-all duration-700"
               />
               <div className="absolute -bottom-6 -right-6 bg-primary text-white p-6 rounded-3xl shadow-2xl rotate-12">
                  <Flame className="w-8 h-8" />
@@ -828,42 +859,37 @@ export default function App() {
       </section>
 
       {/* Story / Heritage Section */}
-      <section className="py-32 bg-cream overflow-hidden border-y border-stone-200/50">
-        <div className="max-w-7xl mx-auto px-4 grid lg:grid-cols-2 gap-24 items-center">
-           <div className="relative">
-              <div className="text-[20vw] font-serif font-black text-stone-200/40 absolute -top-20 -left-10 select-none">01</div>
-              <h2 className="text-5xl font-serif font-light italic relative z-10">
-                The Heritage <br />
-                <span className="text-gold font-bold not-italic">of the Hunt.</span>
-              </h2>
-           </div>
-           <p className="text-stone-500 text-lg leading-relaxed first-letter:text-5xl first-letter:font-serif first-letter:mr-3 first-letter:float-left first-letter:text-charcoal first-letter:font-black">
-              Born from a roadside stall in 1982, our recipe hasn't changed. We still use the same heavy-gauge steel grills, the same blend of 14 spices, and the same unhurried approach to perfection. In a world of fast food, we choose to remain slow, deliberate, and fiercely authentic.
-           </p>
+      <section className="py-24 bg-surface border-y border-stone-100">
+        <div className="max-w-7xl mx-auto px-4 grid lg:grid-cols-2 gap-16 items-center">
+            <h2 className="text-4xl text-charcoal">
+              A Heritage of <br />
+              <span className="text-primary">Authentic Flavor.</span>
+            </h2>
+            <p className="text-stone-500 text-lg leading-relaxed">
+              Born from a roadside stall in 1982, our recipe remains true to its roots. We use local ingredients, a signature blend of herbs and spices, and our traditional charcoal grilling method. No shortcuts, just honest food.
+            </p>
         </div>
       </section>
 
       {/* Menu Section */}
-      <section id="menu" className="py-32 px-4 bg-white relative">
-        <div className="max-w-7xl mx-auto space-y-24">
-          <div className="flex flex-col items-center text-center space-y-6">
-            <span className="text-primary font-black uppercase tracking-[0.4em] text-[10px]">The Curated Menu</span>
-            <h2 className="text-6xl font-serif italic">The Daily Selection</h2>
-            <div className="w-20 h-1 bg-primary rounded-full mx-auto" />
+      <section id="menu" className="py-24 px-4 bg-white relative">
+        <div className="max-w-7xl mx-auto space-y-16">
+          <div className="flex flex-col items-center text-center space-y-2">
+            <span className="text-primary font-bold uppercase tracking-wider text-xs">Our Menu</span>
+            <h2 className="text-4xl">Fresh Daily Selection</h2>
           </div>
 
           <div className="grid lg:grid-cols-12 gap-12">
-            <div className="lg:col-span-3 space-y-8">
-              <div className="sticky top-32 space-y-6">
-                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-stone-400">Categories</h3>
-                <div className="flex flex-col gap-2">
+            <div className="lg:col-span-3">
+              <div className="sticky top-24 space-y-4">
+                <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider">Categories</h3>
+                <div className="flex flex-wrap lg:flex-col gap-2">
                   {['All', ...categories].map(cat => (
                     <button 
                       key={cat}
-                      className="group flex items-center justify-between py-3 border-b border-stone-100 text-sm font-bold transition-all hover:text-primary hover:px-2"
+                      className="px-4 py-2 rounded-lg text-sm font-medium transition-all hover:bg-stone-50 hover:text-primary text-left"
                     >
                       {cat}
-                      <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </button>
                   ))}
                 </div>
@@ -872,47 +898,43 @@ export default function App() {
 
             <div className="lg:col-span-9">
               {products.length === 0 ? (
-                <div className="p-32 bg-stone-50 rounded-[3rem] border border-stone-200/50 flex flex-col items-center justify-center text-center">
-                  <div className="w-20 h-20 bg-stone-100 rounded-full flex items-center justify-center mb-8">
-                     <Loader2 className="w-10 h-10 text-stone-300 animate-spin" />
-                  </div>
-                  <p className="font-serif italic text-xl text-stone-400">The first batch is hitting the coals now...</p>
+                <div className="p-24 bg-surface rounded-3xl text-center">
+                  <p className="text-stone-400">Loading our fresh menu...</p>
                 </div>
               ) : (
-                <div className="grid sm:grid-cols-2 gap-x-12 gap-y-20">
+                <div className="grid sm:grid-cols-2 gap-8">
                   {products.map((product, idx) => (
                     <motion.div 
                       key={product.id}
-                      initial={{ opacity: 0, y: 30 }}
+                      initial={{ opacity: 0, y: 20 }}
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true }}
-                      transition={{ delay: idx * 0.1 }}
-                      className="group flex flex-col pt-8 border-t border-stone-100"
+                      transition={{ delay: idx * 0.05 }}
+                      className="group border border-stone-100 rounded-2xl overflow-hidden shadow-soft hover:shadow-md transition-shadow"
                     >
-                      <div className="aspect-[4/5] bg-stone-100 rounded-2xl overflow-hidden mb-8 relative">
+                       <div className="aspect-[16/10] bg-surface relative">
                         {product.imageUrl && (
                           <img 
                             src={product.imageUrl} 
                             alt={product.name} 
-                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                            className="w-full h-full object-cover" 
                           />
                         )}
-                        <div className="absolute inset-0 bg-charcoal/0 group-hover:bg-charcoal/10 transition-colors duration-500" />
                         <button 
                           onClick={() => addToCart(product)}
-                          className="absolute bottom-6 right-6 w-14 h-14 bg-white rounded-full shadow-2xl flex items-center justify-center translate-y-12 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 hover:bg-primary hover:text-white"
+                          className="absolute bottom-4 right-4 bg-primary text-white p-3 rounded-xl shadow-lg hover:bg-primary-dark transition-all transform hover:scale-110 active:scale-95"
                         >
-                          <Plus className="w-6 h-6" />
+                          <Plus className="w-5 h-5" />
                         </button>
                       </div>
                       
-                      <div className="space-y-4">
+                      <div className="p-6 space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">{product.category}</span>
-                          <span className="font-display font-medium text-lg leading-none">${product.price.toFixed(2)}</span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-primary">{product.category}</span>
+                          <span className="font-bold text-lg text-charcoal">${product.price.toFixed(2)}</span>
                         </div>
-                        <h3 className="text-3xl font-serif font-black italic group-hover:text-primary transition-colors cursor-pointer">{product.name}</h3>
-                        <p className="text-stone-500 text-sm leading-relaxed line-clamp-2">{product.description}</p>
+                        <h3 className="text-xl font-bold text-charcoal">{product.name}</h3>
+                        <p className="text-stone-500 text-sm line-clamp-2">{product.description}</p>
                       </div>
                     </motion.div>
                   ))}
@@ -924,110 +946,80 @@ export default function App() {
       </section>
 
       {/* Testimonials / Quality Footer */}
-      <section className="py-32 px-4 bg-charcoal text-white overflow-hidden relative">
-        <div className="absolute inset-0 opacity-10 pointer-events-none">
-           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/20 blur-[150px] rounded-full" />
-           <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-gold/10 blur-[120px] rounded-full" />
-        </div>
-        
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-24 items-center relative z-10">
-           <div className="space-y-12">
-              <div className="space-y-4">
-                 <span className="text-primary font-black uppercase tracking-[0.4em] text-[10px]">The Commitment</span>
-                 <h3 className="text-6xl font-serif italic italic leading-tight">Beyond the Grill.</h3>
-              </div>
+      <section className="py-24 px-4 bg-surface border-t border-stone-100">
+        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
+            <div className="space-y-8">
+              <h3 className="text-4xl text-charcoal">Quality Commitment</h3>
               
-              <div className="space-y-8">
-                <div className="flex gap-6 items-start">
-                  <div className="w-14 h-14 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center flex-shrink-0 group hover:border-primary transition-colors">
-                    <CheckCircle2 className="w-6 h-6 text-primary" />
-                  </div>
-                  <div className="space-y-2">
-                    <h4 className="font-serif font-bold text-2xl italic">The 24-Hour Ritual</h4>
-                    <p className="text-stone-400 text-lg leading-relaxed font-serif italic opacity-70">A deep, complex infusion that honors the livestock. We don't rush the flavor.</p>
+              <div className="space-y-6">
+                <div className="flex gap-4">
+                  <CheckCircle2 className="w-6 h-6 text-primary mt-1" />
+                  <div>
+                    <h4 className="font-bold text-lg">Natural Process</h4>
+                    <p className="text-stone-500">24-hour slow marination for deep flavor.</p>
                   </div>
                 </div>
                 
-                <div className="flex gap-6 items-start">
-                  <div className="w-14 h-14 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center flex-shrink-0 group hover:border-primary transition-colors">
-                    <Flame className="w-6 h-6 text-primary" />
-                  </div>
-                  <div className="space-y-2">
-                    <h4 className="font-serif font-bold text-2xl italic">Honest Charcoal</h4>
-                    <p className="text-stone-400 text-lg leading-relaxed font-serif italic opacity-70">No gas, no compromises. Only the soul-deep smokiness of real oak wood embers.</p>
+                <div className="flex gap-4">
+                  <Flame className="w-6 h-6 text-primary mt-1" />
+                  <div>
+                    <h4 className="font-bold text-lg">Wood Embers</h4>
+                    <p className="text-stone-500">Traditional charcoal grilling for authentic smokiness.</p>
                   </div>
                 </div>
               </div>
-           </div>
+            </div>
 
-           <div className="bg-white/5 border border-white/10 p-12 rounded-[3.5rem] glass space-y-12 backdrop-blur-2xl">
-              <div className="flex items-center gap-6">
-                 <div className="w-16 h-16 bg-primary rounded-3xl flex items-center justify-center shadow-2xl shadow-primary/40">
-                    <MapPin className="w-8 h-8 text-white" />
+            <div className="bg-white border border-stone-100 p-8 rounded-3xl shadow-soft grid gap-6">
+              <div className="flex items-center gap-4">
+                 <div className="w-12 h-12 bg-primary/5 rounded-xl flex items-center justify-center">
+                    <MapPin className="w-6 h-6 text-primary" />
                  </div>
                  <div>
-                    <h5 className="font-serif font-bold text-2xl italic">Find the Fire</h5>
-                    <p className="text-stone-400 font-medium">Downtown Arts District, Studio 44</p>
+                    <h5 className="font-bold">Location</h5>
+                    <p className="text-stone-500 text-sm">Arts District, Studio 44</p>
                  </div>
               </div>
-              <div className="flex items-center gap-6">
-                 <div className="w-16 h-16 bg-gold rounded-3xl flex items-center justify-center shadow-2xl shadow-gold/40">
-                    <Phone className="w-8 h-8 text-white" />
+              <div className="flex items-center gap-4">
+                 <div className="w-12 h-12 bg-primary/5 rounded-xl flex items-center justify-center">
+                    <Phone className="w-6 h-6 text-primary" />
                  </div>
                  <div>
-                    <h5 className="font-serif font-bold text-2xl italic">Private Dining</h5>
-                    <p className="text-stone-400 font-medium">+1 (800) GRILL-HERITAGE</p>
+                    <h5 className="font-bold">Contact</h5>
+                    <p className="text-stone-500 text-sm">+1 (800) GRILL-CO</p>
                  </div>
               </div>
-              <div className="pt-6 border-t border-white/10 flex items-center justify-between">
-                 <div className="flex -space-x-4">
-                    {[1,2,3,4].map(i => (
-                      <div key={i} className="w-10 h-10 rounded-full border-2 border-charcoal bg-stone-800 overflow-hidden">
-                        <img src={`https://i.pravatar.cc/100?u=${i}`} alt="" />
-                      </div>
-                    ))}
-                 </div>
-                 <p className="text-[10px] font-black uppercase tracking-widest text-primary">Joining 2.4k+ Loyalists</p>
-              </div>
-           </div>
+            </div>
         </div>
       </section>
 
       {/* My Orders Section */}
       {user && myOrders.length > 0 && (
-        <section className="py-32 px-4 bg-cream border-t border-stone-200/50">
-           <div className="max-w-4xl mx-auto space-y-12">
-              <div className="flex items-center justify-between">
-                 <h2 className="text-4xl font-serif italic">Your Order History</h2>
-                 <div className="w-12 h-1 bg-stone-200 rounded-full" />
-              </div>
+        <section className="py-24 px-4 bg-surface border-t border-stone-100">
+           <div className="max-w-4xl mx-auto space-y-8">
+              <h2 className="text-3xl">Your Orders</h2>
               
-              <div className="space-y-6">
+              <div className="space-y-4">
                  {myOrders.map((order, idx) => (
                     <motion.div 
                       key={order.id} 
-                      initial={{ opacity: 0, x: -20 }}
-                      whileInView={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.1 }}
-                      className="p-8 bg-white rounded-[2.5rem] border border-stone-100 flex items-center justify-between group hover:shadow-xl transition-all duration-500"
+                      initial={{ opacity: 0, y: 10 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      className="p-6 bg-white rounded-2xl border border-stone-100 shadow-soft"
                     >
-                       <div className="space-y-2">
-                          <div className="flex gap-4 items-center">
-                             <span className="text-xs font-black uppercase tracking-widest text-stone-300">#{order.id?.slice(-6).toUpperCase()}</span>
-                             <span className={`text-[10px] uppercase font-black px-4 py-1.5 rounded-full ${
-                                order.status === OrderStatus.DELIVERED ? 'bg-green-50 text-green-600' : 
-                                order.status === OrderStatus.CANCELLED ? 'bg-red-50 text-red-600' : 'bg-primary/5 text-primary'
-                             }`}>
-                                {order.status.replace(/-/g, ' ')}
-                             </span>
+                       <div className="flex items-center justify-between mb-4">
+                          <div>
+                             <p className="text-xs font-bold text-stone-400 uppercase tracking-wider">#{order.id?.slice(-6).toUpperCase()}</p>
+                             <p className="text-lg font-bold">
+                                {order.items.length} item{order.items.length > 1 ? 's' : ''} • <span className="text-primary">${order.totalAmount.toFixed(2)}</span>
+                             </p>
                           </div>
-                          <p className="text-xl font-serif italic font-bold">
-                             {order.items.length} Article{order.items.length > 1 ? 's' : ''} • <span className="font-display not-italic font-black text-stone-400">${order.totalAmount.toFixed(2)}</span>
-                          </p>
+                          <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${order.status === 'delivered' ? 'bg-green-50 text-green-600' : 'bg-primary/5 text-primary'}`}>
+                             {order.status.replace(/-/g, ' ')}
+                          </div>
                        </div>
-                       <button className="w-14 h-14 bg-stone-50 rounded-full flex items-center justify-center text-stone-300 group-hover:bg-primary group-hover:text-white transition-all duration-300 group-hover:rotate-45">
-                          <ChevronRight className="w-6 h-6" />
-                       </button>
+                       
+                       <StatusStepper currentStatus={order.status} />
                     </motion.div>
                  ))}
               </div>
@@ -1066,13 +1058,10 @@ export default function App() {
                  <Flame className="w-64 h-64" />
               </div>
 
-              <div className="flex justify-between items-center mb-10 relative z-10">
-                <div className="space-y-1">
-                   <h3 className="text-4xl font-serif italic">Secure Settlement</h3>
-                   <p className="text-[10px] font-black uppercase tracking-widest text-stone-400">Article Allocation Complete</p>
-                </div>
-                <button onClick={() => setCheckoutStatus('idle')} className="p-3 hover:bg-stone-50 rounded-full transition-colors">
-                  <X className="w-6 h-6 text-stone-400" />
+              <div className="flex justify-between items-center mb-6 relative z-10">
+                 <h3 className="text-2xl font-bold">Complete Your Order</h3>
+                <button onClick={() => setCheckoutStatus('idle')} className="p-2 hover:bg-stone-50 rounded-full transition-colors">
+                  <X className="w-5 h-5 text-stone-400" />
                 </button>
               </div>
               
@@ -1126,12 +1115,8 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <footer className="py-12 px-4 border-t border-stone-100 text-center space-y-4">
-        <div className="flex items-center justify-center gap-2 opacity-50">
-          <Flame className="w-5 h-5" />
-          <span className="font-display font-bold tracking-tight">Grilled & Co.</span>
-        </div>
-        <p className="text-stone-400 text-xs">© 2026 Grilled & Co. Hand-crafted with passion for flame.</p>
+      <footer className="py-12 px-4 bg-surface border-t border-stone-100 text-center">
+        <p className="text-stone-400 text-sm font-medium">© 2026 Grilled & Co. Fresh from the flame.</p>
       </footer>
     </div>
   );
