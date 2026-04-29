@@ -1,0 +1,6 @@
+{
+  "name": "Grilled & Co.",
+  "description": "Premium online ordering for authentic grilled chicken and sides.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["Firebase", "Online Ordering", "Real-time Tracking"]
+}

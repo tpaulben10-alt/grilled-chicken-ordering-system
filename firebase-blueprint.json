@@ -1,0 +1,79 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "A grilled chicken item or side dish on the menu.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the dish" },
+        "description": { "type": "string", "description": "Short description of the item" },
+        "price": { "type": "number", "description": "Price in USD" },
+        "category": { "type": "string", "description": "Category (e.g., Mains, Sides, Drinks)" },
+        "imageUrl": { "type": "string", "description": "URL to the item's image" },
+        "isAvailable": { "type": "boolean", "description": "Whether the item is currently in stock" }
+      },
+      "required": ["name", "price", "category", "isAvailable"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "A customer's food order.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "ID of the customer who placed the order" },
+        "items": {
+          "type": "array",
+          "description": "List of items in the order",
+          "items": {
+            "type": "object",
+            "properties": {
+              "productId": { "type": "string" },
+              "name": { "type": "string" },
+              "quantity": { "type": "number" },
+              "price": { "type": "number" }
+            }
+          }
+        },
+        "totalAmount": { "type": "number", "description": "Total order amount" },
+        "status": {
+          "type": "string",
+          "description": "Current status of the order",
+          "enum": ["pending", "preparing", "out-for-delivery", "delivered", "cancelled"]
+        },
+        "deliveryAddress": { "type": "string", "description": "Address for delivery" },
+        "phone": { "type": "string", "description": "Contact phone number" },
+        "paymentStatus": { "type": "string", "enum": ["pending", "success", "failed"] },
+        "transactionId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "items", "totalAmount", "status", "deliveryAddress", "phone"]
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Private profile data for a user.",
+      "type": "object",
+      "properties": {
+        "fullName": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "isAdmin": { "type": "boolean" }
+      },
+      "required": ["email"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Publicly viewable menu items."
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Secure orders placed by users."
+    },
+    "/users/{userId}/profile/private": {
+      "schema": "UserProfile",
+      "description": "User private data."
+    }
+  }
+}
